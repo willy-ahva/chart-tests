@@ -9,6 +9,8 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip as ChartJSTooltip, Legend as ChartJSLegend } from 'chart.js'
+import { Line as ChartJSLine } from 'react-chartjs-2'
 import './App.css'
 
 interface RawData {
@@ -54,6 +56,17 @@ function App() {
     { value: 'flow', label: 'Flux' },
   ]
 
+  // Register Chart.js components
+  ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    ChartJSTooltip,
+    ChartJSLegend
+  )
+
   useEffect(() => {
     fetch('/fixtures/fixtures.json')
       .then(response => response.json())
@@ -86,10 +99,62 @@ function App() {
 
   const filtered = data.filter(d => d.week >= startWeek && d.week <= endWeek)
 
+  // Prepare Chart.js data
+  const chartJSData = {
+    labels: filtered.map(d => `Semaine ${d.week}`),
+    datasets: [
+      {
+        label: yFields.find(f => f.value === y1Field)?.label || y1Field,
+        data: filtered.map(d => d[y1Field as keyof ChartData]),
+        borderColor: '#8884d8',
+        backgroundColor: 'rgba(136, 132, 216, 0.5)',
+        yAxisID: 'y',
+      },
+      {
+        label: yFields.find(f => f.value === y2Field)?.label || y2Field,
+        data: filtered.map(d => d[y2Field as keyof ChartData]),
+        borderColor: '#82ca9d',
+        backgroundColor: 'rgba(130, 202, 157, 0.5)',
+        yAxisID: 'y1',
+      },
+    ],
+  }
+
+  const chartJSOptions = {
+    responsive: true,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
+    scales: {
+      y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
+        title: {
+          display: true,
+          text: yFields.find(f => f.value === y1Field)?.label || y1Field,
+        },
+      },
+      y1: {
+        type: 'linear' as const,
+        display: true,
+        position: 'right' as const,
+        title: {
+          display: true,
+          text: yFields.find(f => f.value === y2Field)?.label || y2Field,
+        },
+        grid: {
+          drawOnChartArea: false,
+        },
+      },
+    },
+  }
+
   return (
-    <div style={{ width: '1200px', height: '800px', margin: '40px auto' }}>
+    <div style={{ width: '100%', maxWidth: '1800px', margin: '40px auto', padding: '0 20px' }}>
       <h2>Évolution dynamique par semaine</h2>
-      <div style={{ marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <label>
           Semaine de début :
           <select value={startWeek} onChange={e => setStartWeek(Number(e.target.value))}>
@@ -123,38 +188,50 @@ function App() {
           </select>
         </label>
       </div>
-      <ResponsiveContainer>
-        <LineChart
-          data={filtered}
-          margin={{
-            top: 20,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="week" label={{ value: 'Semaine', position: 'insideBottom', offset: -5 }} />
-          <YAxis yAxisId="left" label={{ value: yFields.find(f => f.value === y1Field)?.label || y1Field, angle: -90, position: 'insideLeft' }} />
-          <YAxis yAxisId="right" orientation="right" label={{ value: yFields.find(f => f.value === y2Field)?.label || y2Field, angle: 90, position: 'insideRight' }} />
-          <Tooltip />
-          <Legend />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey={y1Field}
-            stroke="#8884d8"
-            name={yFields.find(f => f.value === y1Field)?.label || y1Field}
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey={y2Field}
-            stroke="#82ca9d"
-            name={yFields.find(f => f.value === y2Field)?.label || y2Field}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        flexDirection: window.innerWidth < 1200 ? 'column' : 'row',
+        height: '600px'
+      }}>
+        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={filtered}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="week" label={{ value: 'Semaine', position: 'insideBottom', offset: -5 }} />
+              <YAxis yAxisId="left" label={{ value: yFields.find(f => f.value === y1Field)?.label || y1Field, angle: -90, position: 'insideLeft' }} />
+              <YAxis yAxisId="right" orientation="right" label={{ value: yFields.find(f => f.value === y2Field)?.label || y2Field, angle: 90, position: 'insideRight' }} />
+              <Tooltip />
+              <Legend />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey={y1Field}
+                stroke="#8884d8"
+                name={yFields.find(f => f.value === y1Field)?.label || y1Field}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey={y2Field}
+                stroke="#82ca9d"
+                name={yFields.find(f => f.value === y2Field)?.label || y2Field}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+          <ChartJSLine options={chartJSOptions} data={chartJSData} />
+        </div>
+      </div>
     </div>
   )
 }
